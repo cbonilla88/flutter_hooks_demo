@@ -16,4 +16,12 @@ class Album {
       title: json['title'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'userId': userId,
+      'id': id,
+      'title': title,
+    };
+  }
 }

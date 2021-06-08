@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:http/http.dart' as http;
 import 'Album.dart';
+import 'ApiClient.dart';
 
 void main() {
   runApp(MyApp());
@@ -37,6 +37,7 @@ class MyApp extends StatelessWidget {
 
 class MyHomePageHook extends HookWidget {
   final String title;
+  final ApiService api = ApiService();
 
   MyHomePageHook(this.title);
 
@@ -48,8 +49,8 @@ class MyHomePageHook extends HookWidget {
 
     useEffect(() {
       Future.microtask(() async {
-        albumData.value = await fetchAlbum(1);
-        albumList.value = await fetchAlbumList();
+        albumData.value = await api.fetchAlbum(1);
+        albumList.value = await api.fetchAlbumList();
       });
       return () {
         print('good bye');
@@ -58,7 +59,7 @@ class MyHomePageHook extends HookWidget {
 
     void updateAlbumTitle(int id) {
       Future.microtask(() async {
-        albumData.value = await fetchAlbum(id);
+        albumData.value = await api.fetchAlbum(id);
       });
     }
 
@@ -67,53 +68,70 @@ class MyHomePageHook extends HookWidget {
         title: Text(title),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'Show album with id:'+counter.value.toString(),
+          child: Column(
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.all(5),
+            height: 30,
+            child: Text(
+              'Show album with id: ' + albumData.value.id.toString(),
               style: Theme.of(context).textTheme.headline6,
             ),
-            Text(
+          ),
+          Container(
+            height: 30,
+            child: Text(
               albumData.value.title.toString(),
               style: Theme.of(context).textTheme.headline5,
             ),
-            DataTable(
-              sortAscending: true,
-              sortColumnIndex: 0,
-              columns: [
-                DataColumn(label: Text("Id"), numeric: true, tooltip: "Id"),
-                DataColumn(
-                  label: Text("Title"),
-                  numeric: false,
-                  tooltip: "Title",
-                ),
-                DataColumn(
-                  label: Text("UserId"),
-                  numeric: true,
-                  tooltip: "UserId",
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(8),
+              children: <Widget>[
+                Container(
+                  child: DataTable(
+                    sortAscending: true,
+                    sortColumnIndex: 0,
+                    columns: [
+                      DataColumn(
+                          label: Text("Id"), numeric: true, tooltip: "Id"),
+                      DataColumn(
+                        label: Text("Title"),
+                        numeric: false,
+                        tooltip: "Title",
+                      ),
+                      DataColumn(
+                        label: Text("UserId"),
+                        numeric: true,
+                        tooltip: "UserId",
+                      ),
+                    ],
+                    rows: albumList.value
+                        .take(50)
+                        .map(
+                          (album) => DataRow(
+                              selected: albumData.value.id == album.id,
+                              cells: [
+                                DataCell(
+                                  Text(album.id.toString()),
+                                ),
+                                DataCell(Text(album.title), onTap: () {
+                                  updateAlbumTitle(album.id);
+                                }),
+                                DataCell(
+                                  Text(album.userId.toString()),
+                                ),
+                              ]),
+                        )
+                        .toList(),
+                  ),
                 ),
               ],
-              rows: albumList.value.take(10)
-                  .map(
-                    (album) => DataRow(
-                        cells: [
-                          DataCell(
-                            Text(album.id.toString()),
-                          ),
-                          DataCell(
-                            Text(album.title),
-                          ),
-                          DataCell(
-                            Text(album.userId.toString()),
-                          ),
-                        ]),
-                  )
-                  .toList(),
             ),
-          ],
-        ),
-      ),
+          ),
+        ],
+      )),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           counter.value++;
@@ -123,36 +141,5 @@ class MyHomePageHook extends HookWidget {
         child: Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
-  }
-}
-
-Future<Album> fetchAlbum(int id) async {
-  final response = await http.get(Uri.parse(
-      'https://jsonplaceholder.typicode.com/albums/' + id.toString()));
-
-  if (response.statusCode == 200) {
-    // If the server did return a 200 OK response,
-    // then parse the JSON.
-    return Album.fromJson(jsonDecode(response.body));
-  } else {
-    // If the server did not return a 200 OK response,
-    // then throw an exception.
-    throw Exception('Failed to load album');
-  }
-}
-
-Future<List<Album>> fetchAlbumList() async {
-  final response =
-      await http.get(Uri.parse('https://jsonplaceholder.typicode.com/albums'));
-
-  if (response.statusCode == 200) {
-    // If the server did return a 200 OK response,
-    // then parse the JSON.
-    List jsonResponse = json.decode(response.body);
-    return jsonResponse.map((data) => new Album.fromJson(data)).toList();
-  } else {
-    // If the server did not return a 200 OK response,
-    // then throw an exception.
-    throw Exception('Failed to load album');
   }
 }
